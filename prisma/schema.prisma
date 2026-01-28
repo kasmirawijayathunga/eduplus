@@ -1,0 +1,116 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DB_URL")
+}
+
+model User {
+  id              String       @id @default(cuid())
+  email           String       @unique
+  name            String?
+  password        String
+  role            Role         @default(STUDENT)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  coursesTeaching Course[]     @relation("InstructorCourses")
+  enrollments     Enrollment[]
+  messages        Message[]
+  submissions     Submission[]
+}
+
+model Course {
+  id            String         @id @default(cuid())
+  title         String
+  code          String         @unique
+  description   String?        @db.Text
+  instructorId  String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  announcements Announcement[]
+  assignments   Assignment[]
+  instructor    User           @relation("InstructorCourses", fields: [instructorId], references: [id])
+  enrollments   Enrollment[]
+
+  @@index([instructorId], map: "Course_instructorId_fkey")
+}
+
+model Enrollment {
+  id         String   @id @default(cuid())
+  userId     String
+  courseId   String
+  enrolledAt DateTime @default(now())
+  course     Course   @relation(fields: [courseId], references: [id])
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, courseId])
+  @@index([courseId], map: "Enrollment_courseId_fkey")
+}
+
+model Assignment {
+  id          String       @id @default(cuid())
+  title       String
+  description String?      @db.Text
+  courseId    String
+  dueDate     DateTime?
+  createdAt   DateTime     @default(now())
+  course      Course       @relation(fields: [courseId], references: [id])
+  submissions Submission[]
+
+  @@index([courseId], map: "Assignment_courseId_fkey")
+}
+
+model Submission {
+  id           String           @id @default(cuid())
+  assignmentId String
+  studentId    String
+  fileUrl      String?
+  content      String?          @db.Text
+  grade        Float?
+  status       SubmissionStatus @default(PENDING)
+  submittedAt  DateTime         @default(now())
+  gradedAt     DateTime?
+  assignment   Assignment       @relation(fields: [assignmentId], references: [id])
+  student      User             @relation(fields: [studentId], references: [id])
+
+  @@index([assignmentId], map: "Submission_assignmentId_fkey")
+  @@index([studentId], map: "Submission_studentId_fkey")
+}
+
+model Announcement {
+  id        String   @id @default(cuid())
+  courseId  String
+  title     String
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  course    Course   @relation(fields: [courseId], references: [id])
+
+  @@index([courseId], map: "Announcement_courseId_fkey")
+}
+
+model Message {
+  id         String   @id @default(cuid())
+  senderId   String
+  receiverId String
+  content    String   @db.Text
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  sender     User     @relation(fields: [senderId], references: [id])
+
+  @@index([senderId], map: "Message_senderId_fkey")
+}
+
+enum Role {
+  ADMIN
+  INSTRUCTOR
+  STUDENT
+}
+
+enum SubmissionStatus {
+  PENDING
+  SUBMITTED
+  GRADED
+  RETURNED
+}
